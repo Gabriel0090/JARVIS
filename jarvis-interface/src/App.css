@@ -1,0 +1,90 @@
+:root {
+  --jarvis-blue: #00f3ff;
+  --jarvis-dark: #0a0a12;
+}
+
+body {
+  margin: 0;
+  background-color: var(--jarvis-dark);
+  color: var(--jarvis-blue);
+  font-family: 'Courier New', monospace;
+  overflow: hidden;
+}
+
+.container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: black;
+  
+  /* TRUQUE DE MESTRE: Espelha o container inteiro.
+     Assim o vídeo e o desenho invertem juntos e ficam sempre alinhados. */
+  transform: scaleX(-1);
+}
+
+/* O vídeo e o canvas devem ocupar o mesmo espaço absoluto */
+.webcam-feed, .overlay-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Garante que preencham a tela sem distorcer */
+}
+
+.webcam-feed {
+  z-index: 1;
+  opacity: 0.5; /* Escurece o vídeo pro Jarvis brilhar */
+}
+
+.overlay-canvas {
+  z-index: 2;
+}
+
+/* A Interface precisa ser "des-espelhada" para o texto não ficar ao contrário */
+.ui-layer, .chat-interface {
+  position: absolute;
+  z-index: 10;
+  /* Inverte de volta só o texto para podermos ler */
+  transform: scaleX(-1); 
+}
+
+.ui-layer {
+  top: 20px;
+  right: 20px; /* Como invertemos, right vira left visualmente */
+  text-align: right;
+}
+
+/* Estilo do Chat */
+.chat-interface {
+  bottom: 30px;
+  width: 500px;
+  /* Centraliza no container invertido */
+  left: 50%;
+  margin-left: -250px; 
+}
+
+.jarvis-output {
+  background: rgba(0, 10, 20, 0.9);
+  border: 1px solid var(--jarvis-blue);
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 10px;
+  text-align: left; /* Garante texto alinhado para leitura */
+}
+
+.input-area {
+  display: flex;
+  gap: 10px;
+}
+
+.input-area input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--jarvis-blue);
+  color: white;
+  padding: 10px;
+}
