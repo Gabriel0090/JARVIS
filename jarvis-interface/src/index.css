@@ -1,68 +1,296 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+  --jarvis-cyan: #00e5ff;
+  --jarvis-blue: #0077ff;
+  --bright-glow: #e0ffff;
+  --danger-red: #ff3333;
+  --bg-dark: #020a14;
+  --panel-bg: rgba(0, 20, 40, 0.6);
 }
 
 body {
   margin: 0;
+  background-color: var(--bg-dark);
+  font-family: 'Share Tech Mono', monospace; /* Fonte mais tecnológica */
+  color: var(--jarvis-cyan);
+  overflow: hidden;
+}
+
+.hud-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  /* Gradiente de fundo mais profundo */
+  background: radial-gradient(ellipse at center, #0a1525 0%, #000000 90%);
   display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  justify-content: center;
+  align-items: center;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* Fundo com padrão de circuito (opcional) */
+.tech-background {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-image: 
+        linear-gradient(rgba(0, 229, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 229, 255, 0.05) 1px, transparent 1px);
+    background-size: 50px 50px;
+    pointer-events: none;
+    z-index: 0;
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
+/* --- REATOR ARC CENTRAL --- */
+.arc-reactor {
+  position: relative;
+  width: 350px;
+  height: 350px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 5;
+}
+
+/* O Núcleo Central */
+.core-circle {
+  position: absolute;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--bright-glow) 0%, var(--jarvis-cyan) 50%, transparent 90%);
+  box-shadow: 0 0 60px var(--jarvis-cyan), inset 0 0 20px var(--bright-glow);
+  z-index: 3;
+  /* Animação padrão (respirando devagar) */
+  animation: pulse-slow 3s infinite ease-in-out;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.core-inner-glow {
+    width: 40%;
+    height: 40%;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 0 20px white;
+    opacity: 0.8;
+}
+
+/* --- A MÁGICA: Animação quando JARVIS fala --- */
+.core-circle.speaking {
+    /* Substitui a animação lenta por uma rápida e caótica */
+    animation: voice-pulse 0.2s infinite alternate ease-in-out !important;
+    box-shadow: 0 0 100px var(--jarvis-cyan), inset 0 0 40px var(--bright-glow);
+    background: radial-gradient(circle, #fff 20%, var(--jarvis-cyan) 70%);
+}
+
+/* Anéis giratórios */
+.core-ring {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border: 8px solid transparent;
+  border-top-color: var(--jarvis-cyan);
+  border-bottom-color: rgba(0, 229, 255, 0.3);
+  border-radius: 50%;
+  animation: spin 6s infinite linear;
+  box-shadow: 0 0 30px rgba(0, 229, 255, 0.5);
+  filter: blur(1px);
+}
+
+.core-ring.ring-fast {
+    animation: spin 2s infinite linear !important; /* Gira mais rápido ao falar */
+    border-top-color: var(--bright-glow);
+}
+
+.core-outer-ring {
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  border: 3px dashed var(--jarvis-blue);
+  border-radius: 50%;
+  animation: spin-reverse 12s infinite linear;
+  opacity: 0.5;
+}
+
+/* --- PAINÉIS LATERAIS MELHORADOS --- */
+.data-panel {
+  position: absolute;
+  width: 320px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  padding: 20px;
+  background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.05), transparent);
+  border-radius: 10px;
+}
+
+.left-panel { left: 40px; text-align: right; border-right: 2px solid rgba(0, 229, 255, 0.2); }
+.right-panel { right: 40px; text-align: left; border-left: 2px solid rgba(0, 229, 255, 0.2); }
+
+.data-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.label {
+  font-size: 14px;
+  letter-spacing: 2px;
+  font-weight: bold;
+  text-shadow: 0 0 5px var(--jarvis-cyan);
+}
+
+.value {
+  font-size: 22px;
+  font-weight: bold;
+  text-shadow: 0 0 10px var(--jarvis-cyan);
+}
+
+.bar-container {
+  width: 100%;
+  height: 14px;
+  background: rgba(0, 20, 40, 0.8);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  /* Efeito de "recorte" nos cantos */
+  clip-path: polygon(0 0, 100% 0, 98% 100%, 2% 100%);
+  overflow: hidden;
+  padding: 2px;
+}
+
+.bar-fill {
+  height: 100%;
+  /* A cor agora é definida inline no React */
+  transition: width 0.8s cubic-bezier(0.22, 0.61, 0.36, 1);
+  border-radius: 2px;
+}
+
+/* --- CHAT INFERIOR MELHORADO --- */
+.chat-console {
+  position: absolute;
+  bottom: 30px;
+  width: 65%;
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  background: var(--panel-bg);
+  border-radius: 5px;
+  box-shadow: 0 0 30px rgba(0, 119, 255, 0.15);
+  backdrop-filter: blur(5px);
+  z-index: 10;
+}
+
+.terminal-header {
+  font-size: 12px;
+  background: rgba(0, 229, 255, 0.1);
+  padding: 5px 15px;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.2);
+  letter-spacing: 1px;
+}
+
+.terminal-body {
+  padding: 15px;
+  height: 120px; /* Altura fixa */
+  overflow-y: auto; /* Barra de rolagem se necessário */
+  font-size: 16px;
+  text-shadow: 0 0 5px var(--jarvis-cyan);
+  scrollbar-width: thin;
+  scrollbar-color: var(--jarvis-cyan) transparent;
+}
+
+.terminal-body pre {
+    margin: 0;
+    white-space: pre-wrap; /* Quebra linha automaticamente */
+}
+
+.controls-container {
+    display: flex;
+    justify-content: center;
+    padding: 10px;
+    border-top: 1px solid rgba(0, 229, 255, 0.2);
+}
+
+.mic-button {
+  background: rgba(0, 229, 255, 0.1);
+  border: 1px solid var(--jarvis-cyan);
+  color: var(--jarvis-cyan);
+  padding: 12px 30px;
   font-family: inherit;
-  background-color: #1a1a1a;
+  font-size: 16px;
   cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.2);
+  clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+.mic-button:hover:not(.disabled) {
+  background: rgba(0, 229, 255, 0.3);
+  box-shadow: 0 0 30px var(--jarvis-cyan);
+}
+
+.mic-button.active {
+  background: rgba(255, 51, 51, 0.2);
+  border-color: var(--danger-red);
+  color: var(--danger-red);
+  box-shadow: 0 0 30px var(--danger-red);
+}
+
+.mic-button.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: #555;
+    color: #888;
+}
+
+
+/* --- OVERLAYS E EFEITOS --- */
+.overlay-scanlines {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.3),
+    rgba(0, 0, 0, 0.3) 2px,
+    transparent 2px,
+    transparent 4px
+  );
+  pointer-events: none;
+  z-index: 20;
+  opacity: 0.5;
+}
+
+/* Vinheta para escurecer as bordas */
+.overlay-vignette {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: radial-gradient(circle, transparent 60%, black 100%);
+    pointer-events: none;
+    z-index: 19;
+}
+
+/* --- ANIMAÇÕES --- */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes spin-reverse {
+  0% { transform: rotate(360deg); }
+  100% { transform: rotate(0deg); }
+}
+
+/* Pulso lento (padrão) */
+@keyframes pulse-slow {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+
+/* Pulso rápido de fala (ativado pela classe .speaking) */
+@keyframes voice-pulse {
+    0% { transform: scale(0.95); opacity: 0.9; }
+    100% { transform: scale(1.2); opacity: 1; filter: brightness(1.5); }
 }

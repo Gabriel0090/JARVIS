@@ -1,272 +1,184 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
-import Webcam from 'react-webcam';
-import { FilesetResolver, HandLandmarker, DrawingUtils } from '@mediapipe/tasks-vision';
+import React, { useEffect, useState, useRef } from 'react';
 import './App.css';
-import { sendMessageToJarvis } from "./services/gemini";
-
-// URL do Holograma
-const HOLOGRAM_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Earth_Western_Hemisphere_transparent_background.png/600px-Earth_Western_Hemisphere_transparent_background.png";
 
 function App() {
-  const webcamRef = useRef(null);
-  const canvasRef = useRef(null);
-
-  // Estados Visuais
-  const [handLandmarker, setHandLandmarker] = useState(null);
-  const [hologramImg, setHologramImg] = useState(null);
-  const [systemStatus, setSystemStatus] = useState("SISTEMA ONLINE");
-
-  // Estados de Voz e IA
-  const [jarvisResponse, setJarvisResponse] = useState("Aguardando ativação...");
+  const [stats, setStats] = useState({ cpu: 0, ram: 0, disk: 0, battery: 100 });
+  const [jarvisResponse, setJarvisResponse] = useState("INICIALIZANDO SISTEMAS...");
+  
   const [isListening, setIsListening] = useState(false);
-  const [selectedVoice, setSelectedVoice] = useState(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  
+  const recognitionRef = useRef(null);
+  const terminalBodyRef = useRef(null);
 
-  // Gatilho de callback
-  const [shouldStartListening, setShouldStartListening] = useState(false);
+  const GATILHOS = ["jarvis", "ei jarvis", "olá jarvis", "oi jarvis"];
 
-  // --- 1. CONFIGURAÇÃO DE VOZ ---
-  useEffect(() => {
-    const loadVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      const bestVoice = voices.find(v =>
-        (v.name.includes("Google") || v.name.includes("Microsoft")) &&
-        v.lang.includes("pt-BR")
-      );
-      if (bestVoice) setSelectedVoice(bestVoice);
-    };
+  // 🔥 ---- FUNÇÃO AGORA ESTÁ ACIMA DAS CHAMADAS ----
+  const startContinuousListening = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
 
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-    loadVoices();
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'pt-BR';
+      recognition.continuous = true;
+      recognition.interimResults = false;
 
-    // Carrega imagem
-    const img = new Image();
-    img.src = HOLOGRAM_URL;
-    img.onload = () => setHologramImg(img);
-  }, []);
+      recognition.onstart = () => {
+        setIsListening(true);
+        setJarvisResponse("SISTEMA ONLINE. ESCUTA ATIVA.");
+      };
 
-  // --- 2. FUNÇÃO DE FALA (MEMORIZADA) ---
-  const speak = useCallback((text) => {
-    window.speechSynthesis.cancel();
+      recognition.onerror = (event) => {
+        if (event.error === 'not-allowed') {
+          setJarvisResponse("ERRO: PERMISSÃO DE MICROFONE NEGADA PELA PÁGINA.");
+        }
+      };
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'pt-BR';
-    utterance.rate = 1.2;
+      recognition.onresult = (event) => {
+        const current = event.resultIndex;
+        const transcript = event.results[current][0].transcript.toLowerCase().trim();
+        console.log("Escutou:", transcript);
 
-    if (selectedVoice) utterance.voice = selectedVoice;
+        const gatilho = GATILHOS.find(g => transcript.includes(g));
 
+        if (gatilho) {
+          let comando = transcript.replace(gatilho, "").trim();
+          if (!comando) comando = "Olá";
+          setJarvisResponse(prev => prev + "\n> COMANDO: " + comando.toUpperCase());
+          processarComando(comando);
+        }
+      };
+
+      recognition.onend = () => {
+        recognition.start();
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+
+    } catch (e) {
+      console.error("Erro ao iniciar voz:", e);
+    }
+  };
+
+  const processarComando = async (text) => {
+    try {
+      if (recognitionRef.current) recognitionRef.current.stop();
+
+      const response = await fetch('http://localhost:8000', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text })
+      });
+      
+      const data = await response.json();
+      falarResposta(data.response);
+      setJarvisResponse(prev => prev + "\nJARVIS: " + data.response);
+
+    } catch {
+      setJarvisResponse(prev => prev + "\nERRO DE CONEXÃO.");
+      recognitionRef.current.start();
+    }
+  };
+
+  const falarResposta = (texto) => {
+    const utterance = new SpeechSynthesisUtterance(texto);
+    utterance.lang = "pt-BR";
+    utterance.rate = 1.1; 
+    
+    utterance.onstart = () => setIsSpeaking(true);
+    
     utterance.onend = () => {
-      setSystemStatus("AGUARDANDO RÉPLICA...");
-      setTimeout(() => setShouldStartListening(true), 300);
+      setIsSpeaking(false);
+      if (recognitionRef.current) recognitionRef.current.start(); 
     };
 
     window.speechSynthesis.speak(utterance);
-  }, [selectedVoice]);
-
-  // --- 3. FUNÇÃO DE ESCUTA ---
-const startListening = useCallback(() => {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) return;
-
-  const recognition = new SpeechRecognition();
-  recognition.lang = 'pt-BR';
-  recognition.interimResults = false;
-  recognition.maxAlternatives = 1;
-
-  // <<< RESET DO TRIGGER AQUI! (evita warning)
-  setShouldStartListening(false);
-
-  setIsListening(true);
-  setSystemStatus("🎤 OUVINDO...");
-
-  recognition.onresult = async (event) => {
-    const text = event.results[0][0].transcript;
-
-    setSystemStatus("PROCESSANDO...");
-    setIsListening(false);
-
-    const resposta = await sendMessageToJarvis(text);
-
-    setJarvisResponse(resposta);
-    setSystemStatus("RESPONDENDO...");
-
-    speak(resposta);
   };
 
-  recognition.onerror = () => {
-    setIsListening(false);
-    setSystemStatus("SISTEMA ONLINE (STANDBY)");
-  };
-
-try {
-  recognition.start();
-} catch (e) {
-  console.warn("Erro ao iniciar reconhecimento de voz:", e);
-}
-
-}, [speak]);
-
-
-  // --- 4. TRIGGER DO MICROFONE ---
-useEffect(() => {
-  if (shouldStartListening) {
-
-    // EXECUTA startListening FORA do ciclo síncrono do efeito
-    setTimeout(() => {
-      startListening();
-    }, 0);
-  }
-}, [shouldStartListening, startListening]);
-
-
-
-  // --- 5. GESTO DE ATIVAÇÃO ---
-  const detectActivationGesture = (landmarks) => {
-    const p9 = landmarks[9];
-    const p0 = landmarks[0];
-    const dist = Math.sqrt(Math.pow(p9.x - p0.x, 2) + Math.pow(p9.y - p0.y, 2));
-    return dist > 0.15;
-  };
-
-  // --- 6. LOOP DE DETECÇÃO ---
+  // 🔥 AUTO-ROLAR CONSOLE
   useEffect(() => {
-    let animationFrameId;
-    let gestureCooldown = false;
+    if (terminalBodyRef.current) {
+      terminalBodyRef.current.scrollTop = terminalBodyRef.current.scrollHeight;
+    }
+  }, [jarvisResponse]);
 
-    const renderLoop = () => {
-      if (
-        handLandmarker &&
-        webcamRef.current &&
-        webcamRef.current.video &&
-        webcamRef.current.video.readyState === 4
-      ) {
-        const video = webcamRef.current.video;
-        const startTimeMs = performance.now();
-        const result = handLandmarker.detectForVideo(video, startTimeMs);
-
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-
-        if (result.landmarks && result.landmarks.length > 0) {
-          const landmarks = result.landmarks[0];
-          const utils = new DrawingUtils(ctx);
-
-          utils.drawConnectors(landmarks, HandLandmarker.HAND_CONNECTIONS, {
-            color: "#00f3ff",
-            lineWidth: 2
-          });
-
-          utils.drawLandmarks(landmarks, {
-            color: "white",
-            lineWidth: 1,
-            radius: 3
-          });
-
-          if (hologramImg) {
-            const p9 = landmarks[9];
-            const p0 = landmarks[0];
-            const size = Math.sqrt(
-              Math.pow((p9.x - p0.x) * ctx.canvas.width, 2) +
-              Math.pow((p9.y - p0.y) * ctx.canvas.height, 2)
-            ) * 3.5;
-
-            ctx.drawImage(
-              hologramImg,
-              p9.x * ctx.canvas.width - size / 2,
-              p9.y * ctx.canvas.height - size / 2 - 50,
-              size,
-              size
-            );
-          }
-
-          const isHandOpen = detectActivationGesture(landmarks);
-          if (isHandOpen && !isListening && !gestureCooldown && systemStatus.includes("STANDBY")) {
-            gestureCooldown = true;
-            setShouldStartListening(true);
-            setTimeout(() => gestureCooldown = false, 3000);
-          }
-        }
+  // 🔥 BUSCAR STATUS DO SISTEMA
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('http://127.0.0.1:8000/system-status');
+        const data = await response.json();
+        setStats(data);
+      } catch (error) {
+        console.error("Erro ao buscar status do sistema:", error);
       }
-
-      animationFrameId = requestAnimationFrame(renderLoop);
     };
+    fetchStats();
+    const interval = setInterval(fetchStats, 2000);
+    return () => clearInterval(interval);
+  }, []);
 
-    if (handLandmarker) renderLoop();
-
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [handLandmarker, hologramImg, isListening, systemStatus]);
-
-  // --- 7. CARREGAR MODELO ---
+  // 🔥 INICIAR JARVIS AUTOMATICAMENTE
   useEffect(() => {
-    const startMediaPipe = async () => {
-      const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
-      );
-
-      const landmarker = await HandLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-          delegate: "GPU"
-        },
-        runningMode: "VIDEO",
-        numHands: 1
-      });
-
-      setHandLandmarker(landmarker);
-      setSystemStatus("SISTEMA ONLINE (STANDBY)");
-    };
-
-    startMediaPipe();
+    setTimeout(() => {
+      startContinuousListening();
+    }, 1000);
   }, []);
 
   return (
-    <div className="container">
+    <div className="hud-container">
+      <div className="tech-background"></div>
 
-      <div className="ui-layer">
-        <div className="status-text"
-          style={{
-            color: isListening ? '#ff3333' : '#00f3ff',
-            textShadow: isListening ? '0 0 10px red' : 'none'
-          }}>
-          {systemStatus}
+      <div className="arc-reactor">
+        <div className={`core-circle ${isSpeaking ? 'speaking' : ''} ${!isListening ? 'offline' : ''}`}>
+           <div className="core-inner-glow"></div>
+        </div>
+        <div className={`core-ring ${isSpeaking ? 'ring-fast' : ''}`}></div>
+        <div className="core-outer-ring"></div>
+      </div>
+
+      <div className="data-panel left-panel">
+        <PanelItem label="CPU CORE" value={stats.cpu} />
+        <PanelItem label="RAM MEMORY" value={stats.ram} />
+      </div>
+
+      <div className="data-panel right-panel">
+        <PanelItem label="DISK SPACE" value={stats.disk} />
+        <PanelItem label="BATTERY" value={stats.battery} isBattery={true} />
+      </div>
+
+      <div className="chat-console">
+        <div className="terminal-header">JARVIS SYSTEM LOG // {isListening ? "ONLINE" : "BOOTING..."}</div>
+        <div className="terminal-body" ref={terminalBodyRef}>
+          <pre>{jarvisResponse}</pre>
+        </div>
+        <div className="status-line">
+            {isListening ? (isSpeaking ? "PROCESSANDO RESPOSTA..." : "ESCUTA ATIVA - AGUARDANDO COMANDO") : "INICIALIZANDO DRIVERS DE ÁUDIO..."}
         </div>
       </div>
 
-      <div className="chat-interface">
-        <div className="jarvis-output">
-          <span className="label">J.A.R.V.I.S.</span>
-          <p>{jarvisResponse}</p>
-        </div>
+      <div className="overlay-scanlines"></div>
+      <div className="overlay-vignette"></div>
+    </div>
+  );
+}
 
-        <div className="input-area" style={{ justifyContent: 'center' }}>
-          <button
-            onClick={() => setShouldStartListening(true)}
-            style={{
-              borderRadius: '50%',
-              width: '60px',
-              height: '60px',
-              background: isListening ? 'red' : 'var(--jarvis-blue)',
-              border: 'none',
-              fontSize: '24px',
-              cursor: 'pointer',
-              boxShadow: isListening ? '0 0 20px red' : '0 0 15px var(--jarvis-blue)',
-              transition: '0.3s'
-            }}
-          >
-            {isListening ? '👂' : '🎙️'}
-          </button>
-        </div>
+function PanelItem({ label, value, isBattery }) {
+  let barColor = 'var(--jarvis-cyan)';
+  if (value > 90 && !isBattery) barColor = '#ff3333'; 
+  if (value < 20 && isBattery) barColor = '#ff3333'; 
 
-        <p style={{ textAlign: 'center', fontSize: '10px', marginTop: '5px', opacity: 0.7 }}>
-          FALE "OLÁ JARVIS" OU LEVANTE A MÃO
-        </p>
+  return (
+    <div className="data-row">
+      <div className="data-header">
+        <span className="label">{label}</span>
+        <span className="value">{value}%</span>
       </div>
-
-      <Webcam ref={webcamRef} className="webcam-feed" mirrored={false} />
-      <canvas ref={canvasRef} className="overlay-canvas" />
+      <div className="bar-container">
+        <div className="bar-fill" style={{ width: `${value}%`, backgroundColor: barColor, boxShadow: `0 0 10px ${barColor}` }}></div>
+      </div>
     </div>
   );
 }

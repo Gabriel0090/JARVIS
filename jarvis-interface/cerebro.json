@@ -1,0 +1,10 @@
+{
+    "nome_usuario": "Senhor",
+    "preferencias": {
+        "tom_de_voz": "formal",
+        "musica_favorita": "Rock"
+    },
+    "lembretes": [
+        "Lembrete de anivers\u00e1rio: Gabriel, 15 de mar\u00e7o de 2026"
+    ]
+}
